@@ -85,7 +85,6 @@ func logMessage(level, message string) {
 	}
 	log.Printf("[%s] %s - %s\n", entry.Level, entry.Timestamp, entry.Message)
 
-	// Forward only ERROR, WARN and suspicious patterns to AI (reduce API load)
 	shouldForward := level == "ERROR" || level == "WARN" ||
 		strings.Contains(strings.ToLower(message), "timeout") ||
 		strings.Contains(strings.ToLower(message), "failed") ||
@@ -96,7 +95,7 @@ func logMessage(level, message string) {
 		select {
 		case logForwardCh <- entry:
 		default:
-			// Drop if channel is full to avoid blocking critical path
+
 		}
 	}
 }
@@ -159,12 +158,11 @@ func simulateTrafficHandler(w http.ResponseWriter, r *http.Request) {
 
 	logMessage("INFO", "Starting traffic simulation")
 
-	// Simulate varying load
 	duration := rand.Intn(500) + 100
 	time.Sleep(time.Duration(duration) * time.Millisecond)
 
 	statusCode := http.StatusOK
-	if rand.Float32() < 0.1 { // 10% error rate
+	if rand.Float32() < 0.1 {
 		statusCode = http.StatusInternalServerError
 		processingErrors.Inc()
 		logMessage("ERROR", "Simulated error occurred")
@@ -183,7 +181,6 @@ func backgroundMetricsGenerator() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		// Simulate changing active connections
 		connections := float64(rand.Intn(100))
 		activeConnections.Set(connections)
 
@@ -191,10 +188,8 @@ func backgroundMetricsGenerator() {
 	}
 }
 
-// autoLogGenerator periodically generates random logs for testing AI analysis
 func autoLogGenerator(ctx context.Context, interval time.Duration) {
 	if interval == 0 {
-		// Default to 8 seconds if not configured - generates frequent error/warn logs
 		interval = 8 * time.Second
 	}
 
@@ -204,7 +199,6 @@ func autoLogGenerator(ctx context.Context, interval time.Duration) {
 
 		log.Printf("[INFO] Auto log generation enabled: every %s (ERROR/WARN focused)", interval)
 
-		// Weighted towards ERROR and WARN for AI analysis
 		levels := []string{"ERROR", "ERROR", "ERROR", "WARN", "WARN", "INFO"}
 		messages := map[string][]string{
 			"INFO":  {"User authentication successful", "API request processed"},
@@ -215,7 +209,6 @@ func autoLogGenerator(ctx context.Context, interval time.Duration) {
 		for {
 			select {
 			case <-ticker.C:
-				// Generate 2-4 random logs each interval
 				count := rand.Intn(3) + 2
 				for i := 0; i < count; i++ {
 					level := levels[rand.Intn(len(levels))]
@@ -231,7 +224,6 @@ func autoLogGenerator(ctx context.Context, interval time.Duration) {
 	}()
 }
 
-// startLogForwarder ships log entries to the configured AI agent endpoint.
 func startLogForwarder(ctx context.Context, client *http.Client, endpoint string, foundationEnabled bool, foundationSend func(context.Context, string)) {
 	go func() {
 		for {
@@ -249,7 +241,7 @@ func startLogForwarder(ctx context.Context, client *http.Client, endpoint string
 				if agentAuthToken != "" {
 					req.Header.Set("Authorization", "Bearer "+agentAuthToken)
 				}
-				_, _ = client.Do(req) // best effort; ignore response
+				_, _ = client.Do(req)
 
 				if foundationEnabled && foundationSend != nil {
 					msg := fmt.Sprintf("LOG %s %s %s", entry.Level, entry.Timestamp, entry.Message)
